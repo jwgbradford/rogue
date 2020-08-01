@@ -1,7 +1,18 @@
-existing_top_left = (1, 1)
-exisintg_bottom_right = (4, 4)
-new_top_left = ( 3, 2)
-new_bottom_right = (6, 6)
+def convert_to_binary(doors):
+    doors_dec = doors
+    doors_bin  = [0, 0, 0, 0]
+    if doors_dec % 2 == 1:
+        doors_bin[3] = '1'
+        doors_dec -= 1
+    if doors_dec % 2 == 0 and doors_dec > 0:
+        doors_bin[2] = '1'
+        doors_dec -= 2
+    if doors_dec % 4 == 0 and doors_dec > 0:
+        doors_bin[1] = '1'
+        doors_dec -= 4
+    if doors_dec % 8 == 0 and doors_dec > 0:
+        doors_bin[0] = '1'
+        doors_dec -= 8
+    return doors_bin
 
-if new_top_left[0] > existing_top_left[0]:
-    print('overlap')
+print(convert_to_binary(9))
