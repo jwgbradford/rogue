@@ -56,7 +56,7 @@ class MyGame():
         new_top_left = (rnd.randint(1, COLUMNS - size[0] - 1), rnd.randint(1, ROWS - size[1] - 1))
         self.rooms.append(Room(new_top_left, size))
         # now lets add more rooms, but check that they don't overlap
-        num_of_rooms = 9 #rnd.randint(1, 6)
+        num_of_rooms = 6 #rnd.randint(1, 6)
         for i in range(0, num_of_rooms):
             overlap = True
             while overlap:
@@ -73,11 +73,12 @@ class MyGame():
                         overlap = True
             self.rooms.append(Room(new_top_left, size))
         passages = rnd.randint(num_of_rooms, num_of_rooms * 2)
+        print(passages)
         self.map_passages(passages)
 
     def map_passages(self, passages):
         # first lets figure out many doors on average our rooms should have
-        door_ave = math.ceil(passages / len(self.rooms))
+        #door_ave = math.ceil(passages / len(self.rooms))
         room_dis = []
         for room in self.rooms:
             # need to find nearest room to this one
@@ -90,6 +91,12 @@ class MyGame():
                     temp_distance.append(self.range_check(room, check_room))
             room_dis.append(temp_distance)
         # now we can try and draw a line between closest rooms
+        # but we don't want to go back to a room we're already connected to
+        # if our closest room is one we're connected to, the loop out to the next closest
+        # until we reach a room we're not connected with
+        # then check which of our connected rooms is closest to that new room
+
+        # instead of just looping through all the rooms, we need to creat a path
         for room_count, room in enumerate(self.rooms):
             # we want the minimum distance, but each room is 0 away from itself
             # so we set it dist 999 to take it out of the equation

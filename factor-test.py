@@ -14,5 +14,8 @@ def convert_to_binary(doors):
         doors_bin[0] = '1'
         doors_dec -= 8
     return doors_bin
+if True:
 
-print(convert_to_binary(9))
+    again = input('Would you like another qestion (q), or to exit (x)?')
+    if again.lower() == 'x':
+        playing = False
