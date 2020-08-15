@@ -29,7 +29,9 @@ class MyGame():
         self.playing_area.fill((0,0,0))
         self.map_rooms()
         self.current_room = rnd.choice(self.rooms)
-        self.current_room.add_player()
+        # create a player object in the game
+        self.player = Player()
+        self.current_room.add_player(self.player)
         while True:
             for room in self.rooms:
                 room.draw(self.playing_area)
@@ -38,17 +40,10 @@ class MyGame():
                     pg.display.quit()
                     raise SystemExit
                 elif event.type == pg.KEYDOWN:
-                    if event.key == pg.K_UP:
-                        pass
-                    # player goes up
-                    elif event.key == pg.K_DOWN:
-                        pass
-                    elif event.key == pg.K_RIGHT:
-                        pass
-                    elif event.key == pg.K_LEFT:
-                        pass
+                    if event.key == pg.K_UP or event.key == pg.K_DOWN or event.key == pg.K_RIGHT or event.key == pg.K_LEFT:
+                        self.current_room.move_player(self.player, event.key)
             pg.display.update()
-            self.clock.tick(30)
+            self.clock.tick(10)
 
     def map_rooms(self):
         # add one room to get things started
@@ -73,43 +68,131 @@ class MyGame():
                         overlap = True
             self.rooms.append(Room(new_top_left, size))
         passages = rnd.randint(num_of_rooms, num_of_rooms * 2)
-        print(passages)
-        self.map_passages(passages)
+        # come back to mapping passages later
+        #self.map_passages(passages)
 
     def map_passages(self, passages):
-        # first lets figure out many doors on average our rooms should have
-        #door_ave = math.ceil(passages / len(self.rooms))
-        room_dis = []
+        # work out distances between all our rooms
+        room_distance_lists = self.calculate_distances()
+        print(room_distance_lists)
+        # our starting room = 0 is always on the path
+        path_list = [0]
+        # on our first pass we just want to connect all the rooms once
+        # we start with the first room in the list
+
+# we have a list of lists, called room_distance_lists. Each list represents a room. Each room has a list of distances to the other rooms
+# we iterate over the first list (of rooms)
+# for each room, we want the closest room to that room
+# if we're not already connected to that room, we connect and make the reciprocal link
+# if we are connected to that room
+# if there is are more than room the same distance, we try them first
+# if not, we go to the next nearest room
+# once we have one connection, we move to the next room/ list
+
+        room_being_checked = 0
+        for count in range(len(self.rooms)):
+            not_connected = True
+            closeness = 1 # closeness = 0 would be same room
+            while not_connected:
+                list_of_closest_rooms = self.find_nearest_room(room_distance_lists[room_being_checked], closeness)
+                # now check if any of the closest_index rooms are connected to our rooms_being_checked
+                for closest_index in range(len(list_of_closest_rooms)):
+                    if list_of_closest_rooms[closest_index] not in self.rooms[room_being_checked].connected_rooms:
+                        #add our closest_index room to the one being checked
+                        self.rooms[room_being_checked].connected_rooms.append(list_of_closest_rooms[closest_index])
+                        # we also need to add the reciprical
+                        self.rooms[list_of_closest_rooms[closest_index]].connected_rooms.append(room_being_checked)
+                        # and we add this newly connected room to our path_list
+                        print(room_being_checked, 'is connected to', list_of_closest_rooms[closest_index])
+                        path_list.append(room_being_checked)
+                        # and set our new room_being_checked as the one we've just connected to
+                        room_being_checked = list_of_closest_rooms[closest_index]
+                        not_connected = False
+                        break # we found our closest room, move on
+                    # we didn't find our closest room, move to next closest
+                closeness += 1
+
         for room in self.rooms:
-            # need to find nearest room to this one
+            print(room.connected_rooms)
+#            pg.draw.line(self.playing_area, WHITE, 
+#                (room.top_left[0] * WIDTH, room.top_left[1] * HEIGHT), 
+#                (self.rooms[room.connected_rooms[0]].bottom_right[0] * WIDTH, self.rooms[room.connected_rooms[0]].bottom_right[1] * HEIGHT), 1)
+
+    def calculate_distances(self):
+        room_dis = []
+        for room in self.rooms: 
+            # need to find closest_index room to this one
             # we start by finding the distance between rooms
             temp_distance = []
             for check_room in self.rooms:
                 if room == check_room:
                     temp_distance.append(0)
                 else:
-                    temp_distance.append(self.range_check(room, check_room))
+                    dist = self.range_check(room, check_room)
+                    temp_distance.append(dist)
             room_dis.append(temp_distance)
-        # now we can try and draw a line between closest rooms
-        # but we don't want to go back to a room we're already connected to
-        # if our closest room is one we're connected to, the loop out to the next closest
-        # until we reach a room we're not connected with
-        # then check which of our connected rooms is closest to that new room
+        return room_dis
 
-        # instead of just looping through all the rooms, we need to creat a path
-        for room_count, room in enumerate(self.rooms):
+    def find_nearest_room(self, unordered_list, required_index):
+        sorted_list = sorted(unordered_list)
+        distance = sorted_list[required_index]
+        distances = [i for i, e in enumerate(unordered_list) if e == distance]
+        return distances
+
+        '''
+        closest_index = 0
+        keep_checking = True
+        while keep_checking:
             # we want the minimum distance, but each room is 0 away from itself
             # so we set it dist 999 to take it out of the equation
-            # may be a 'neater' solution but can't think of it just now
-            room_dis[room_count][room_count] = 999
-            closest = 0
-            for i, x in enumerate(room_dis[room_count]):
-                if i != room_count:
-                    if x == min(room_dis[room_count]):
-                        closest = i
-            pg.draw.line(self.playing_area, WHITE, 
-                (room.top_left[0] * WIDTH, room.top_left[1] * HEIGHT), 
-                (self.rooms[closest].bottom_right[0] * WIDTH, self.rooms[closest].bottom_right[1] * HEIGHT), 1)
+            room_dis[closest_index][closest_index] = 999
+            closest_index = 0
+            for i, x in enumerate(room_dis[closest_index]):
+                if i != closest_index:
+                    if x == min(room_dis[closest_index]):
+                        # the closest_index room to this room is i
+                        closest_index = i
+            if closest_index not in room.connected_rooms:
+                room.connected_rooms.append(closest_index)
+                # we also need to add the reciprical
+                self.rooms[closest_index].connected_rooms.append(closest_index)
+                # and we add this newly connected room to our path_list
+                path_list.append(closest_index)
+                room_num = closest_index
+            else: # our rooms are already connected
+                # we need to check each other room distance until we either find one not in path_list
+                # or we run out of rooms, and have reached the end of the first pass path
+                # but need a way of finding next min distance room in list
+                pass
+            if len(path_list) == len(self.rooms):
+                keep_checking = False
+        # need a different strategy at this point - start with self.current_room
+        # then iterate through list finding nearest_room
+
+        for closest_index, room in enumerate(self.rooms):
+            # we want the minimum distance, but each room is 0 away from itself
+            # so we set it dist 999 to take it out of the equation
+            room_dis[closest_index][closest_index] = 999
+            closest_index = 0
+            for i, x in enumerate(room_dis[closest_index]):
+                if i != closest_index:
+                    if x == min(room_dis[closest_index]):
+                        # the closest_index room to this room is i
+                        closest_index = i
+            # now we check if we're already connected to room 'i'
+            if closest_index not in room.connected_rooms:
+                room.connected_rooms.append(closest_index)
+                # we also need to add the reciprical
+                self.rooms[closest_index].connected_rooms.append(closest_index)
+                # and we add this newly connected room to our path_list
+                path_list.append(closest_index)
+            else: # our rooms are already connected
+                # we need to check each other room distance until we either find one not in path_list
+                # or we run out of rooms, and have reached the end of the first pass path
+                # but need a way of finding next min distance room in list
+
+        '''
+
 
     def range_check(self, room, check_room):
         # first we need to figure out if the check_room alignment
@@ -142,6 +225,8 @@ class Room():
         self.top_left = top_left
         self.bottom_right = (self.top_left[0] + size[0] , self.top_left[1] + size[1])
         self.room_tiles = self.build_room(size)
+        # we need to keep a list of which rooms 'this' room is connected to
+        self.connected_rooms = []
 
     def build_room(self, size):
         length, height = size
@@ -202,17 +287,39 @@ class Room():
                 # draw the tile, -1 in a list is always the last item
                 tile[-1].draw(playing_area, (self.top_left[0] + column_num) * WIDTH, (self.top_left[1] + row_num) * HEIGHT)
 
-    def add_player(self):
+    def add_player(self, player):
         start_column = int((self.bottom_right[0] - self.top_left[0]) / 2)
         start_row = int((self.bottom_right[1] - self.top_left[1]) / 2)
-        # let's create a player object
-        self.player = Player()
+        # lets give our player their starting coordinates
+        player.column = start_column
+        player.row = start_row
         # and then store them in our room
-        self.room_tiles[start_column][start_row].append(self.player)
+        self.room_tiles[start_column][start_row].append(player)
 
-    def move_player(self, dir):
-        if dir == 'up':
-            pass
+    def move_player(self, player, event_key):
+        # check our player can move in the chosen direction
+        move = False
+        if event_key == pg.K_UP and isinstance(self.room_tiles[player.column][player.row - 1][-1], Floor):
+            new_row = player.row - 1
+            new_column = player.column
+            move = True
+        elif event_key == pg.K_DOWN and isinstance(self.room_tiles[player.column][player.row + 1][-1], Floor):
+            new_row = player.row + 1
+            new_column = player.column
+            move = True        
+        elif event_key == pg.K_RIGHT and isinstance(self.room_tiles[player.column + 1][player.row][-1], Floor):
+            new_row = player.row
+            new_column = player.column + 1
+            move = True        
+        elif event_key == pg.K_LEFT and isinstance(self.room_tiles[player.column - 1][player.row][-1], Floor):
+            new_row = player.row
+            new_column = player.column - 1
+            move = True       
+        if move:
+            self.room_tiles[player.column][player.row].remove(player)
+            self.room_tiles[new_column][new_row].append(player)
+            player.column = new_column
+            player.row = new_row
 
 class Tile():
     # parent class for everthing in the game
